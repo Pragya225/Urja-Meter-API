@@ -1,0 +1,1898 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Urja Meter Ops API",
+    "version": "1.0.0",
+    "description": "A clean, typed REST API in front of the legacy Urja Meter Ops portal. See PROTOCOL.md for how the portal works."
+  },
+  "components": {
+    "schemas": {}
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Liveness plus freshness of the local snapshot",
+        "tags": ["system"],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    },
+                    "snapshot": {
+                      "type": "object",
+                      "additionalProperties": true
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/meters": {
+      "get": {
+        "summary": "Search and filter meters",
+        "tags": ["meters"],
+        "description": "Served from a local snapshot of the portal's bulk export, so filters the portal cannot do are possible: status, make, phase, transformer, feeder, zone, and proximity (`lat`+`lng`+`radiusKm`, nearest first). If the snapshot cannot be loaded, plain `q`/`page` requests fall back to the portal's own search.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "description": "Substring of meter id or serial number (case-insensitive)"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "description": "Installed | Faulty | Decommissioned"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "make",
+            "required": false,
+            "description": "HPL | Genus | Secure | Allied | L&T"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "phase",
+            "required": false,
+            "description": "single | three"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "build",
+            "required": false,
+            "description": "legacy | v2"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "installationType",
+            "required": false,
+            "description": "CT Operated | Whole Current"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "dtCode",
+            "required": false,
+            "description": "e.g. DT-003"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "feeder",
+            "required": false,
+            "description": "Feeder code, e.g. F-003"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "zone",
+            "required": false,
+            "description": "Zone code, e.g. Z-03"
+          },
+          {
+            "schema": {
+              "type": "number",
+              "minimum": -90,
+              "maximum": 90
+            },
+            "in": "query",
+            "name": "lat",
+            "required": false,
+            "description": "With lng: return meters within radiusKm, nearest first"
+          },
+          {
+            "schema": {
+              "type": "number",
+              "minimum": -180,
+              "maximum": 180
+            },
+            "in": "query",
+            "name": "lng",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "number",
+              "minimum": 0.001,
+              "maximum": 200,
+              "default": 5
+            },
+            "in": "query",
+            "name": "radiusKm",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "in": "query",
+            "name": "page",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "in": "query",
+            "name": "pageSize",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "meterId": {
+                            "type": "string",
+                            "example": "J100002"
+                          },
+                          "serialNo": {
+                            "type": "string",
+                            "example": "AL28136",
+                            "nullable": true
+                          },
+                          "make": {
+                            "type": "string",
+                            "example": "L&T",
+                            "nullable": true
+                          },
+                          "phaseType": {
+                            "type": "string",
+                            "example": "single",
+                            "description": "single | three",
+                            "nullable": true
+                          },
+                          "installStatus": {
+                            "type": "string",
+                            "example": "Installed",
+                            "description": "Installed | Faulty | Decommissioned",
+                            "nullable": true
+                          },
+                          "installationType": {
+                            "type": "string",
+                            "example": "CT Operated",
+                            "description": "CT Operated | Whole Current",
+                            "nullable": true
+                          },
+                          "build": {
+                            "type": "string",
+                            "example": "legacy",
+                            "description": "Portal \"build\" tag (legacy | v2). Meaning is undocumented by the portal.",
+                            "nullable": true
+                          },
+                          "dtCode": {
+                            "type": "string",
+                            "example": "DT-003",
+                            "description": "Distribution transformer the meter hangs off",
+                            "nullable": true
+                          },
+                          "location": {
+                            "type": "object",
+                            "properties": {
+                              "latitude": {
+                                "type": "number",
+                                "example": 26.8402
+                              },
+                              "longitude": {
+                                "type": "number",
+                                "example": 75.7146
+                              }
+                            },
+                            "nullable": true
+                          },
+                          "distanceKm": {
+                            "type": "number",
+                            "description": "Only present for ?lat&lng searches"
+                          }
+                        }
+                      }
+                    },
+                    "total": {
+                      "type": "integer",
+                      "example": 403
+                    },
+                    "page": {
+                      "type": "integer",
+                      "example": 1
+                    },
+                    "pageSize": {
+                      "type": "integer",
+                      "example": 20
+                    },
+                    "source": {
+                      "type": "string",
+                      "enum": ["export", "live"]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Error",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Error",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Error",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Error",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/meters/{meterId}": {
+      "get": {
+        "summary": "Get one meter",
+        "tags": ["meters"],
+        "description": "Nameplate, GPS location and network hierarchy (with missing codes repaired and flagged in `quality`).",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,32}$",
+              "example": "J100002"
+            },
+            "in": "path",
+            "name": "meterId",
+            "required": true,
+            "description": "Portal meter id, e.g. J100002"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "meterId": {
+                      "type": "string",
+                      "example": "J100002"
+                    },
+                    "serialNo": {
+                      "type": "string",
+                      "example": "AL28136",
+                      "nullable": true
+                    },
+                    "make": {
+                      "type": "string",
+                      "example": "L&T",
+                      "nullable": true
+                    },
+                    "phaseType": {
+                      "type": "string",
+                      "example": "single",
+                      "description": "single | three",
+                      "nullable": true
+                    },
+                    "installStatus": {
+                      "type": "string",
+                      "example": "Installed",
+                      "description": "Installed | Faulty | Decommissioned",
+                      "nullable": true
+                    },
+                    "installationType": {
+                      "type": "string",
+                      "example": "CT Operated",
+                      "description": "CT Operated | Whole Current",
+                      "nullable": true
+                    },
+                    "build": {
+                      "type": "string",
+                      "example": "legacy",
+                      "description": "Portal \"build\" tag (legacy | v2). Meaning is undocumented by the portal.",
+                      "nullable": true
+                    },
+                    "dtCode": {
+                      "type": "string",
+                      "example": "DT-003",
+                      "description": "Distribution transformer the meter hangs off",
+                      "nullable": true
+                    },
+                    "location": {
+                      "type": "object",
+                      "properties": {
+                        "latitude": {
+                          "type": "number",
+                          "example": 26.8402
+                        },
+                        "longitude": {
+                          "type": "number",
+                          "example": 75.7146
+                        }
+                      },
+                      "nullable": true
+                    },
+                    "distanceKm": {
+                      "type": "number",
+                      "description": "Only present for ?lat&lng searches"
+                    },
+                    "hierarchy": {
+                      "type": "object",
+                      "description": "Where the meter sits in the network, top (zone) to bottom (distribution transformer). Codes are only unique within their parent.",
+                      "properties": {
+                        "zone": {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string",
+                              "example": "Vaishali DT 3",
+                              "nullable": true
+                            },
+                            "code": {
+                              "type": "string",
+                              "example": "DT-003",
+                              "description": "null when the portal omitted it and it could not be repaired",
+                              "nullable": true
+                            }
+                          },
+                          "nullable": true
+                        },
+                        "circle": {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string",
+                              "example": "Vaishali DT 3",
+                              "nullable": true
+                            },
+                            "code": {
+                              "type": "string",
+                              "example": "DT-003",
+                              "description": "null when the portal omitted it and it could not be repaired",
+                              "nullable": true
+                            }
+                          },
+                          "nullable": true
+                        },
+                        "division": {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string",
+                              "example": "Vaishali DT 3",
+                              "nullable": true
+                            },
+                            "code": {
+                              "type": "string",
+                              "example": "DT-003",
+                              "description": "null when the portal omitted it and it could not be repaired",
+                              "nullable": true
+                            }
+                          },
+                          "nullable": true
+                        },
+                        "subdivision": {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string",
+                              "example": "Vaishali DT 3",
+                              "nullable": true
+                            },
+                            "code": {
+                              "type": "string",
+                              "example": "DT-003",
+                              "description": "null when the portal omitted it and it could not be repaired",
+                              "nullable": true
+                            }
+                          },
+                          "nullable": true
+                        },
+                        "substation": {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string",
+                              "example": "Vaishali DT 3",
+                              "nullable": true
+                            },
+                            "code": {
+                              "type": "string",
+                              "example": "DT-003",
+                              "description": "null when the portal omitted it and it could not be repaired",
+                              "nullable": true
+                            }
+                          },
+                          "nullable": true
+                        },
+                        "feeder": {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string",
+                              "example": "Vaishali DT 3",
+                              "nullable": true
+                            },
+                            "code": {
+                              "type": "string",
+                              "example": "DT-003",
+                              "description": "null when the portal omitted it and it could not be repaired",
+                              "nullable": true
+                            }
+                          },
+                          "nullable": true
+                        },
+                        "dt": {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string",
+                              "example": "Vaishali DT 3",
+                              "nullable": true
+                            },
+                            "code": {
+                              "type": "string",
+                              "example": "DT-003",
+                              "description": "null when the portal omitted it and it could not be repaired",
+                              "nullable": true
+                            }
+                          },
+                          "nullable": true
+                        }
+                      }
+                    },
+                    "quality": {
+                      "type": "object",
+                      "description": "Data-quality flags for this meter, e.g. hierarchy_code_repaired:circle, dt_name_mismatch",
+                      "properties": {
+                        "flags": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "source": {
+                      "type": "string",
+                      "enum": ["export", "live"],
+                      "description": "export = bulk snapshot; live = fetched from the portal for this request"
+                    },
+                    "extraParameters": {
+                      "type": "object",
+                      "additionalProperties": true,
+                      "description": "Nameplate parameters we do not model explicitly (live source only)"
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Error",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Error",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Error",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Error",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/meters/{meterId}/consumption": {
+      "get": {
+        "summary": "Meter consumption readings (resolution varies per meter)",
+        "tags": ["meters"],
+        "description": "The portal exposes cumulative kWh/kVAh registers at a resolution that differs per meter (e.g. 30-minute or daily; see summary.intervalMinutes). This endpoint also derives per-interval consumption, a summary and the power factor. Timestamps are ISO 8601; the portal gives local time without a zone, so we assume IST (+05:30).",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "description": "Inclusive lower bound"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "description": "Inclusive upper bound"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,32}$",
+              "example": "J100002"
+            },
+            "in": "path",
+            "name": "meterId",
+            "required": true,
+            "description": "Portal meter id, e.g. J100002"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "meterId": {
+                      "type": "string"
+                    },
+                    "readings": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "timestamp": {
+                            "type": "string",
+                            "format": "date-time",
+                            "example": "2026-06-23T23:30:00+05:30"
+                          },
+                          "kwh": {
+                            "type": "number",
+                            "description": "Cumulative active-energy register (kWh)"
+                          },
+                          "kvah": {
+                            "type": "number",
+                            "description": "Cumulative apparent-energy register (kVAh)",
+                            "nullable": true
+                          },
+                          "voltageR": {
+                            "type": "number",
+                            "description": "R-phase voltage (V)",
+                            "nullable": true
+                          },
+                          "intervalKwh": {
+                            "type": "number",
+                            "description": "Energy used since the previous reading; null for the first reading or after a counter reset",
+                            "nullable": true
+                          }
+                        }
+                      }
+                    },
+                    "summary": {
+                      "type": "object",
+                      "properties": {
+                        "count": {
+                          "type": "integer"
+                        },
+                        "intervalMinutes": {
+                          "type": "number",
+                          "description": "Typical gap between readings in minutes (30 = half-hourly, 1440 = daily). Differs per meter.",
+                          "nullable": true
+                        },
+                        "from": {
+                          "type": "string",
+                          "format": "date-time",
+                          "nullable": true
+                        },
+                        "to": {
+                          "type": "string",
+                          "format": "date-time",
+                          "nullable": true
+                        },
+                        "totalKwh": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "totalKvah": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "powerFactor": {
+                          "type": "number",
+                          "description": "totalKwh / totalKvah",
+                          "nullable": true
+                        },
+                        "voltageR": {
+                          "type": "object",
+                          "properties": {
+                            "min": {
+                              "type": "number"
+                            },
+                            "max": {
+                              "type": "number"
+                            },
+                            "avg": {
+                              "type": "number"
+                            }
+                          },
+                          "nullable": true
+                        },
+                        "counterResets": {
+                          "type": "integer",
+                          "description": "Times the cumulative register went backwards"
+                        }
+                      }
+                    },
+                    "skippedRows": {
+                      "type": "integer",
+                      "description": "Portal rows we could not parse and ignored"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Error",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Error",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Error",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Error",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/transformers": {
+      "get": {
+        "summary": "List distribution transformers",
+        "tags": ["network"],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "zone",
+            "required": false,
+            "description": "Zone code, e.g. Z-02"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "feeder",
+            "required": false,
+            "description": "Feeder code, e.g. F-003"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "code": {
+                            "type": "string",
+                            "example": "DT-003"
+                          },
+                          "name": {
+                            "type": "string",
+                            "example": "Vaishali DT 3",
+                            "nullable": true
+                          },
+                          "feederCode": {
+                            "type": "string",
+                            "example": "F-003",
+                            "description": "As reported by the transformer list; feeder codes are reused, so prefer hierarchy.feeder",
+                            "nullable": true
+                          },
+                          "capacityKva": {
+                            "type": "number",
+                            "example": 250,
+                            "nullable": true
+                          },
+                          "hierarchy": {
+                            "type": "object",
+                            "description": "Where the meter sits in the network, top (zone) to bottom (distribution transformer). Codes are only unique within their parent.",
+                            "properties": {
+                              "zone": {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string",
+                                    "example": "Vaishali DT 3",
+                                    "nullable": true
+                                  },
+                                  "code": {
+                                    "type": "string",
+                                    "example": "DT-003",
+                                    "description": "null when the portal omitted it and it could not be repaired",
+                                    "nullable": true
+                                  }
+                                },
+                                "nullable": true
+                              },
+                              "circle": {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string",
+                                    "example": "Vaishali DT 3",
+                                    "nullable": true
+                                  },
+                                  "code": {
+                                    "type": "string",
+                                    "example": "DT-003",
+                                    "description": "null when the portal omitted it and it could not be repaired",
+                                    "nullable": true
+                                  }
+                                },
+                                "nullable": true
+                              },
+                              "division": {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string",
+                                    "example": "Vaishali DT 3",
+                                    "nullable": true
+                                  },
+                                  "code": {
+                                    "type": "string",
+                                    "example": "DT-003",
+                                    "description": "null when the portal omitted it and it could not be repaired",
+                                    "nullable": true
+                                  }
+                                },
+                                "nullable": true
+                              },
+                              "subdivision": {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string",
+                                    "example": "Vaishali DT 3",
+                                    "nullable": true
+                                  },
+                                  "code": {
+                                    "type": "string",
+                                    "example": "DT-003",
+                                    "description": "null when the portal omitted it and it could not be repaired",
+                                    "nullable": true
+                                  }
+                                },
+                                "nullable": true
+                              },
+                              "substation": {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string",
+                                    "example": "Vaishali DT 3",
+                                    "nullable": true
+                                  },
+                                  "code": {
+                                    "type": "string",
+                                    "example": "DT-003",
+                                    "description": "null when the portal omitted it and it could not be repaired",
+                                    "nullable": true
+                                  }
+                                },
+                                "nullable": true
+                              },
+                              "feeder": {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string",
+                                    "example": "Vaishali DT 3",
+                                    "nullable": true
+                                  },
+                                  "code": {
+                                    "type": "string",
+                                    "example": "DT-003",
+                                    "description": "null when the portal omitted it and it could not be repaired",
+                                    "nullable": true
+                                  }
+                                },
+                                "nullable": true
+                              },
+                              "dt": {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string",
+                                    "example": "Vaishali DT 3",
+                                    "nullable": true
+                                  },
+                                  "code": {
+                                    "type": "string",
+                                    "example": "DT-003",
+                                    "description": "null when the portal omitted it and it could not be repaired",
+                                    "nullable": true
+                                  }
+                                },
+                                "nullable": true
+                              }
+                            }
+                          },
+                          "meterCount": {
+                            "type": "integer"
+                          },
+                          "statusCounts": {
+                            "type": "object",
+                            "additionalProperties": {
+                              "type": "integer"
+                            },
+                            "description": "Meters per install status"
+                          }
+                        }
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Error",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Error",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Error",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Error",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/transformers/{code}": {
+      "get": {
+        "summary": "One transformer with its meters",
+        "tags": ["network"],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,32}$",
+              "example": "DT-003"
+            },
+            "in": "path",
+            "name": "code",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "DT-003"
+                    },
+                    "name": {
+                      "type": "string",
+                      "example": "Vaishali DT 3",
+                      "nullable": true
+                    },
+                    "feederCode": {
+                      "type": "string",
+                      "example": "F-003",
+                      "description": "As reported by the transformer list; feeder codes are reused, so prefer hierarchy.feeder",
+                      "nullable": true
+                    },
+                    "capacityKva": {
+                      "type": "number",
+                      "example": 250,
+                      "nullable": true
+                    },
+                    "hierarchy": {
+                      "type": "object",
+                      "description": "Where the meter sits in the network, top (zone) to bottom (distribution transformer). Codes are only unique within their parent.",
+                      "properties": {
+                        "zone": {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string",
+                              "example": "Vaishali DT 3",
+                              "nullable": true
+                            },
+                            "code": {
+                              "type": "string",
+                              "example": "DT-003",
+                              "description": "null when the portal omitted it and it could not be repaired",
+                              "nullable": true
+                            }
+                          },
+                          "nullable": true
+                        },
+                        "circle": {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string",
+                              "example": "Vaishali DT 3",
+                              "nullable": true
+                            },
+                            "code": {
+                              "type": "string",
+                              "example": "DT-003",
+                              "description": "null when the portal omitted it and it could not be repaired",
+                              "nullable": true
+                            }
+                          },
+                          "nullable": true
+                        },
+                        "division": {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string",
+                              "example": "Vaishali DT 3",
+                              "nullable": true
+                            },
+                            "code": {
+                              "type": "string",
+                              "example": "DT-003",
+                              "description": "null when the portal omitted it and it could not be repaired",
+                              "nullable": true
+                            }
+                          },
+                          "nullable": true
+                        },
+                        "subdivision": {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string",
+                              "example": "Vaishali DT 3",
+                              "nullable": true
+                            },
+                            "code": {
+                              "type": "string",
+                              "example": "DT-003",
+                              "description": "null when the portal omitted it and it could not be repaired",
+                              "nullable": true
+                            }
+                          },
+                          "nullable": true
+                        },
+                        "substation": {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string",
+                              "example": "Vaishali DT 3",
+                              "nullable": true
+                            },
+                            "code": {
+                              "type": "string",
+                              "example": "DT-003",
+                              "description": "null when the portal omitted it and it could not be repaired",
+                              "nullable": true
+                            }
+                          },
+                          "nullable": true
+                        },
+                        "feeder": {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string",
+                              "example": "Vaishali DT 3",
+                              "nullable": true
+                            },
+                            "code": {
+                              "type": "string",
+                              "example": "DT-003",
+                              "description": "null when the portal omitted it and it could not be repaired",
+                              "nullable": true
+                            }
+                          },
+                          "nullable": true
+                        },
+                        "dt": {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string",
+                              "example": "Vaishali DT 3",
+                              "nullable": true
+                            },
+                            "code": {
+                              "type": "string",
+                              "example": "DT-003",
+                              "description": "null when the portal omitted it and it could not be repaired",
+                              "nullable": true
+                            }
+                          },
+                          "nullable": true
+                        }
+                      }
+                    },
+                    "meterCount": {
+                      "type": "integer"
+                    },
+                    "statusCounts": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "integer"
+                      },
+                      "description": "Meters per install status"
+                    },
+                    "meters": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "meterId": {
+                            "type": "string",
+                            "example": "J100002"
+                          },
+                          "serialNo": {
+                            "type": "string",
+                            "example": "AL28136",
+                            "nullable": true
+                          },
+                          "make": {
+                            "type": "string",
+                            "example": "L&T",
+                            "nullable": true
+                          },
+                          "phaseType": {
+                            "type": "string",
+                            "example": "single",
+                            "description": "single | three",
+                            "nullable": true
+                          },
+                          "installStatus": {
+                            "type": "string",
+                            "example": "Installed",
+                            "description": "Installed | Faulty | Decommissioned",
+                            "nullable": true
+                          },
+                          "installationType": {
+                            "type": "string",
+                            "example": "CT Operated",
+                            "description": "CT Operated | Whole Current",
+                            "nullable": true
+                          },
+                          "build": {
+                            "type": "string",
+                            "example": "legacy",
+                            "description": "Portal \"build\" tag (legacy | v2). Meaning is undocumented by the portal.",
+                            "nullable": true
+                          },
+                          "dtCode": {
+                            "type": "string",
+                            "example": "DT-003",
+                            "description": "Distribution transformer the meter hangs off",
+                            "nullable": true
+                          },
+                          "location": {
+                            "type": "object",
+                            "properties": {
+                              "latitude": {
+                                "type": "number",
+                                "example": 26.8402
+                              },
+                              "longitude": {
+                                "type": "number",
+                                "example": 75.7146
+                              }
+                            },
+                            "nullable": true
+                          },
+                          "distanceKm": {
+                            "type": "number",
+                            "description": "Only present for ?lat&lng searches"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Error",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Error",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Error",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Error",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hierarchy": {
+      "get": {
+        "summary": "Full network tree with meter counts",
+        "tags": ["network"],
+        "description": "Reconstructed from every meter's hierarchy. Nodes are keyed by their full path because the portal reuses codes under different parents.",
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "generatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "zones": {
+                      "type": "array",
+                      "description": "Nested tree zone > circle > division > subdivision > substation > feeder > dt. Every node: { level, code, name, meterCount, statusCounts, children[] } (dt nodes also carry capacityKva).",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Error",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Error",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Error",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Error",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/data-quality": {
+      "get": {
+        "summary": "Inconsistencies found in the portal data, and what we did about each",
+        "tags": ["network"],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "generatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "summary": {
+                      "type": "object",
+                      "additionalProperties": true
+                    },
+                    "issues": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Error",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Error",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Error",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Error",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "meters",
+      "description": "Meter nameplate, location and consumption"
+    },
+    {
+      "name": "network",
+      "description": "Transformers, hierarchy tree and data-quality report"
+    },
+    {
+      "name": "system",
+      "description": "Service health"
+    }
+  ]
+}
