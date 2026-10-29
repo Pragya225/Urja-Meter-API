@@ -3,7 +3,7 @@
 A clean, documented REST API in front of the legacy **Urja Meter Ops** portal, which has no API of its own.
 
 - How the portal works, with every quirk I found → [PROTOCOL.md](./PROTOCOL.md)
-- API description → [openapi.json](./openapi.json); interactive docs at <http://localhost:3000/docs> when running
+- API description → [openapi.json](./openapi.json) (generated from the code with `npm run openapi`); interactive docs at <http://localhost:3000/docs> when running
 
 ## Endpoints
 
@@ -21,11 +21,13 @@ A clean, documented REST API in front of the legacy **Urja Meter Ops** portal, w
 
 Requires Node.js 20+.
 
+**1. Install**
+
 ```bash
 npm install
 ```
 
-Create a `.env` file in the project root (next to `package.json`):
+**2. Create a `.env` file** in the project root (next to `package.json`). It is not in the repo, so create it by hand:
 
 ```dotenv
 PORTAL_URL=https://urja-ops.flockenergy.tech
@@ -35,15 +37,29 @@ PORT=3000
 PORTAL_UTC_OFFSET=+05:30
 ```
 
-`.env` is not pushed to GitHub, so it has to be created by hand. `PORTAL_EMAIL` and `PORTAL_PASSWORD` are required; the rest are optional (more settings, such as cache lifetimes, are in `src/config.js`).
+Only `PORTAL_EMAIL` and `PORTAL_PASSWORD` are required. Other settings (such as cache lifetimes) are in `src/config.js`.
+
+**3. Start the server**
 
 ```bash
-npm start        # runs src/server.js -> http://localhost:3000 (docs at /docs)
-npm test         # runs against a built-in fake portal; no network or credentials needed
-npm run openapi  # regenerates openapi.json
+npm start
 ```
 
-If the server exits with `Missing required environment variable`, check that `.env` exists and is named exactly that.
+**4. Open the interactive docs in your browser**
+
+```
+http://localhost:3000/docs
+```
+
+Every endpoint can be tried there. The first request loads the full dataset from the portal, so give it a moment.
+
+**Run the tests** (no credentials or network needed; they use a built-in fake portal built from real captured responses):
+
+```bash
+npm test
+```
+
+If the server exits with `Missing required environment variable`, check that `.env` exists and is named exactly `.env`.
 
 ## Sample request
 
@@ -78,16 +94,17 @@ src/routes/, schemas.js  endpoints; the same schemas validate requests and gener
 src/services/            meters.js (use-cases), dataset.js (in-memory snapshot + data-quality report)
 src/domain/              hierarchy repair and tree, filters and distance (pure functions)
 src/portal/              client.js (login, retries), bulk.js (signed export), parsers.js
+scripts/                 export-openapi.js (npm run openapi)
 test/                    parsers, domain logic and the full API against a fake portal
 ```
 
 ## Design decisions and trade-offs
 
-1. **Bulk export first, per-meter calls as fallback.** One signed call returns all 403 meters instead of ~830 requests. I reverse-engineered the signature (PROTOCOL.md §3.7). If the export fails, plain search and single-meter lookups fall back to the portal's own endpoints; filters and hierarchy need the snapshot and return 502.
+1. **Bulk export first, per-meter calls as fallback.** One signed call returns all 403 meters instead of ~830 requests. I reverse-engineered the signature (PROTOCOL.md §3.7). If the export fails, plain search and single-meter lookups fall back to the portal's own endpoints; filters, transformers and the hierarchy need the snapshot and return 502.
 2. **In-memory index, no database.** 403 rows is tiny, so a scan is instant and nothing extra needs deploying.
 3. **Stale-while-revalidate.** The snapshot is refreshed in the background after 15 minutes; reads are never blocked, and a failed refresh keeps the old data (`/health` shows the error).
 4. **Consumption is derived.** The portal gives cumulative registers, so I return per-interval kWh and flag counter resets instead of negative usage.
-5. **Messy data is repaired conservatively and visibly.** A missing hierarchy code is filled only if every other meter on that transformer agrees, and each repair is flagged and listed in `/data-quality`. Disagreements are flagged, not silently resolved.
+5. **Messy data is repaired conservatively and visibly.** A missing hierarchy code is filled only if the other meters on that transformer agree, and each repair is flagged and listed in `/data-quality`. Disagreements are flagged, not silently resolved.
 6. **The tree is keyed by path, not code,** because the portal reuses codes under different parents.
 7. **Session handling in one place:** shared login, re-login before the 1-hour expiry or when the portal drops us, retries with backoff.
 8. **Node + Fastify, plain JavaScript.** One set of route schemas gives validation and OpenAPI.
@@ -96,6 +113,7 @@ test/                    parsers, domain logic and the full API against a fake p
 
 - Portal timestamps are IST (+05:30); the portal states no timezone.
 - If meters and the transformer list disagree on a transformer's name, the list wins.
+- The export's `total` tells the loader when to stop paging (today page 1 holds all meters).
 - Only GET requests (plus the login POST) are ever sent to the portal.
 
 ## Scale
@@ -104,10 +122,10 @@ Everything is in one process's memory and queries scan all meters. That is fine 
 
 ## Intentionally skipped
 
-- Authentication on this API (out of scope for a take-home).
-- Bulk consumption for all meters: no bulk endpoint exists, and the portal returns `429` after roughly 200 rapid requests, so readings are fetched on demand and cached.
-- Persistence across restarts, metrics, rate limiting of our own clients.
-- A web client.
+- **Authentication on this API:** out of scope for a take-home; it should not be exposed publicly as is.
+- **Bulk consumption for all meters:** no bulk endpoint exists, and the portal returns `429` after roughly 200 rapid requests, so readings are fetched on demand and cached.
+- **Persistence across restarts, metrics, rate limiting for callers of this API:** not needed for a small read-only service, and I spent the time on data correctness instead.
+- **A web client:** optional, and the API is already shaped for one (coordinates in list results, counts in `/hierarchy`).
 
 ## What I would do with more time
 
@@ -131,4 +149,4 @@ First, a proper outbound rate limiter. The portal starts returning 429 after rou
 I looked at one meter (J100002), saw a reading every 30 minutes, and wrote in the docs that every meter works that way. It was wrong. When I checked more meters I found daily readings, and scanning all 403 showed 40 half-hourly meters and 363 daily ones, 5 of which end with a blank duplicate row. I changed the API to measure the gap between readings instead of assuming it, and rewrote the docs. I had also guessed that "v2" meters were the daily ones, which was wrong too.
 
 **If you were reviewing your own submission, what would you criticise?**
-The tests run against a fake portal, so they can't catch the real portal changing its format; I only checked the live path by hand. Everything is kept in memory in one process, which is fine for 403 meters but would not scale far.
+The tests run against a fake portal, so they can't catch the real portal changing its format; I only checked the live path by hand. Everything is kept in memory in one process, which is fine for 403 meters but would not scale far. The hierarchy repairs trust the other meters on a transformer, and I could not decide who is right about the name of DT-007, so I only flagged it. And this API has no authentication.
